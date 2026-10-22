@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PanOpolis: City-Scale Panorama-to-Panorama Place Recognition with Orientation for Free</title>
+<meta name="description" content="A training-free panorama-to-panorama place recognition pipeline. Building-Graph Verification re-ranks retrieved candidates by the agreement of building directions and recovers the camera heading at no extra cost. WACV 2027.">
+<meta property="og:title" content="PanOpolis: City-Scale Panorama-to-Panorama Place Recognition with Orientation for Free">
+<meta property="og:description" content="Training-free panorama-to-panorama VPR with Building-Graph Verification. Place and heading from one computation. WACV 2027.">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<meta property="og:image" content="static/images/teaser.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css?family=Google+Sans|Noto+Sans:400,400i,700|Castoro&display=swap" rel="stylesheet">
+<style>
+:root{
+  color-scheme: light;
+  --bg:#ffffff; --bg-2:#f3f4f6; --ink:#1b1d24; --ink-2:#4c5160; --rule:#d9dbe1;
+  --blue:#1f4e8c; --blue-soft:#e3ebf6; --amber:#c8761d; --amber-soft:#fbeedd; --code:#f0f2f5;
+  --nav:rgba(255,255,255,.86);
+  --serif:"Google Sans", "Noto Sans", "Helvetica Neue", Arial, sans-serif;
+  --sans:"Noto Sans", "Helvetica Neue", Arial, sans-serif;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+/* always light: white background regardless of system theme */
+:root[data-theme="dark"]{
+  color-scheme: light;
+  --bg:#ffffff; --bg-2:#f3f4f6; --ink:#1b1d24; --ink-2:#4c5160; --rule:#d9dbe1;
+  --blue:#1f4e8c; --blue-soft:#e3ebf6; --amber:#c8761d; --amber-soft:#fbeedd; --code:#f0f2f5;
+  --nav:rgba(255,255,255,.86);
+}
+html{scroll-padding-top:calc(64px + env(safe-area-inset-top,0px));scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:16.5px;line-height:1.65;-webkit-font-smoothing:antialiased}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--nav);backdrop-filter:blur(10px)}
+a{color:var(--blue);text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px}
+a:focus-visible,button:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
+img,svg{max-width:100%}
+.wrap{max-width:800px;margin:0 auto;padding:0 24px}
+.wide{max-width:1140px;margin:0 auto;padding:0 24px}
+
+/* nav */
+nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:9;background:var(--nav);backdrop-filter:blur(10px);border-bottom:1px solid var(--rule)}
+nav .in{max-width:1140px;margin:0 auto;padding:0 24px;height:52px;display:flex;align-items:center;gap:22px;font-family:var(--sans);font-size:14px}
+nav .brand{font-family:var(--serif);font-size:19px;font-weight:600;color:var(--ink);text-decoration:none;margin-right:auto}
+nav a:not(.brand){color:var(--ink-2);text-decoration:none}
+nav a:not(.brand):hover{color:var(--ink)}
+@media (max-width:640px){nav .in a:not(.brand){display:none}}
+
+/* hero */
+.hero{padding:60px 0 24px;text-align:center}
+.venue{display:inline-block;font-family:var(--sans);font-size:14px;font-weight:500;color:var(--blue);background:var(--blue-soft);padding:5px 12px;border-radius:999px}
+h1{font-family:var(--serif);font-weight:700;font-size:clamp(38px,5.6vw,58px);line-height:1.08;letter-spacing:-0.01em;margin:22px 0 6px}
+.subtitle{font-size:clamp(20px,2.6vw,27px);color:var(--ink-2);line-height:1.3;margin:0 0 26px}
+.authors{font-size:21px;margin:0 0 6px;line-height:1.6}
+.authors sup{font-family:var(--sans);font-size:12px;color:var(--ink-2);margin-left:1px}
+.affil{font-family:var(--sans);font-size:14.5px;color:var(--ink-2);margin:0 0 26px;line-height:1.8}
+.affil sup{font-size:11px;margin-right:2px}
+.links{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
+.btn{font-family:var(--sans);font-size:14.5px;font-weight:500;color:var(--bg);background:var(--ink);padding:9px 16px;border-radius:999px;text-decoration:none;display:inline-flex;align-items:center;gap:8px;border:1px solid var(--ink)}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--rule)}
+.btn svg{width:16px;height:16px;fill:currentColor}
+.btn .soon{font-size:11.5px;font-weight:500;color:var(--amber);background:var(--amber-soft);padding:1px 7px;border-radius:999px;margin-left:2px}
+.btn[aria-disabled="true"]{cursor:default;opacity:.85}
+
+/* teaser */
+.teaser{margin:48px auto 0}
+.frame{border-radius:14px;overflow:hidden;background:#fff;border:1px solid var(--rule)}
+.frame img,.frame video{display:block;width:100%;height:auto}
+.caption{font-family:var(--sans);font-size:14px;color:var(--ink-2);line-height:1.55;margin:12px 4px 0}
+.caption b{color:var(--ink);font-weight:600}
+
+/* sections */
+section{padding:96px 0 8px}
+section.wrap,section.wide{padding-top:112px;padding-bottom:8px}
+.kicker{font-family:var(--serif);font-size:32px;font-weight:700;color:var(--ink);text-align:center;margin:0 0 32px;line-height:1.2}
+h2{font-family:var(--serif);font-weight:700;font-size:21px;line-height:1.3;margin:30px 0 10px;letter-spacing:0}
+h3{font-family:var(--sans);font-weight:600;font-size:15.5px;margin:26px 0 8px}
+p{margin:0 0 16px}
+.lead{font-size:16.5px;line-height:1.7}
+.figure{margin:22px 0 6px}
+
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:22px 28px;margin:26px 0 8px}
+.card .tag{font-family:var(--sans);font-size:13px;color:var(--ink-2);margin:0 0 6px}
+.card h4{font-family:var(--serif);font-size:19px;font-weight:700;line-height:1.3;margin:0 0 8px}
+.card p{font-size:15px;color:var(--ink-2);line-height:1.55;margin:0}
+.card{border-top:2px solid var(--blue);padding-top:12px}
+
+.pipeline{list-style:none;padding:0;margin:14px 0 0;counter-reset:step}
+.pipeline li{position:relative;padding:0 0 20px 56px;counter-increment:step}
+.pipeline li::before{content:counter(step);position:absolute;left:0;top:2px;width:34px;height:34px;border-radius:50%;background:var(--blue-soft);color:var(--blue);font-family:var(--sans);font-weight:600;font-size:15px;display:flex;align-items:center;justify-content:center}
+.pipeline li::after{content:"";position:absolute;left:16.5px;top:40px;bottom:2px;width:1px;background:var(--rule)}
+.pipeline li:last-child::after{display:none}
+.pipeline b{font-family:var(--sans);font-weight:600;font-size:15.5px;display:block;margin-bottom:2px}
+.pipeline p{margin:0;font-size:16px;color:var(--ink-2)}
+.eq{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:0.9em;background:var(--code);padding:1px 6px;border-radius:5px;white-space:nowrap}
+
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin:18px 0 8px}
+.fact{border-top:2px solid var(--amber);padding-top:10px}
+.fact .n{font-family:var(--serif);font-size:34px;font-weight:500;line-height:1.05;letter-spacing:-0.01em}
+.fact .l{font-family:var(--sans);font-size:13.5px;color:var(--ink-2);margin-top:4px;line-height:1.4}
+
+.tablewrap{overflow-x:auto;margin:18px 0 6px;-webkit-overflow-scrolling:touch}
+table{border-collapse:collapse;width:100%;font-family:var(--sans);font-size:14px}
+th,td{padding:8px 10px;text-align:right;border-bottom:1px solid var(--rule);white-space:nowrap;font-variant-numeric:tabular-nums}
+th:first-child,td:first-child{text-align:left}
+th{font-weight:600;color:var(--ink-2);font-size:13px}
+thead tr.group th{border-bottom:none;padding-bottom:2px;text-align:center}
+thead tr.group th.gap,tbody td.gap{border-bottom:none;padding:0 6px;width:6px}
+td.b{font-weight:600;color:var(--ink)}
+td.ours,tr.ours td{background:var(--blue-soft);font-weight:600}
+td.sub{color:var(--ink-2);font-size:13px}
+.tnote{font-family:var(--sans);font-size:13.5px;color:var(--ink-2);margin:8px 0 0;line-height:1.55}
+
+/* demo */
+.demo-grid{display:grid;grid-template-columns:1fr;gap:18px;margin:20px 0 6px}
+@media (min-width:900px){.demo-grid{grid-template-columns:1fr 1fr}}
+.demo-grid .frame{background:#fff}
+.demo-grid figcaption{font-family:var(--sans);font-size:13.5px;color:var(--ink-2);margin:8px 2px 0;line-height:1.5}
+figure{margin:0}
+
+pre{background:var(--code);border:1px solid var(--rule);border-radius:12px;padding:18px 20px;overflow-x:auto;font-size:13.5px;line-height:1.55;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;margin:0}
+.bibwrap{position:relative}
+.copy{position:absolute;top:10px;right:10px;font-family:var(--sans);font-size:12.5px;font-weight:500;background:var(--bg);color:var(--ink);border:1px solid var(--rule);border-radius:8px;padding:5px 10px;cursor:pointer}
+
+footer{margin-top:96px;border-top:1px solid var(--rule);padding:28px 0 48px;font-family:var(--sans);font-size:13.5px;color:var(--ink-2);line-height:1.7}
+@media (max-width:640px){
+  body{font-size:16px}
+  section{padding:64px 0 8px}
+  section.wrap,section.wide{padding-top:72px}
+  .hero{padding-top:40px}
+  .authors{font-size:18px}
+  .pipeline li{padding-left:48px}
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="in">
+    <a class="brand" href="#top">PanOpolis</a>
+    <a href="#abstract">Abstract</a>
+    <a href="#method">Method</a>
+    <a href="#results">Results</a>
+    <a href="#qualitative">Qualitative</a>
+    <a href="#bibtex">BibTeX</a>
+  </div>
+</nav>
+
+<header class="hero" id="top">
+  <div class="wrap">
+    <span class="venue">WACV 2027</span>
+    <h1>PanOpolis</h1>
+    <p class="subtitle">City-Scale Panorama-to-Panorama Place Recognition with Orientation for Free</p>
+
+    <p class="authors">
+      Donghyeok Min<sup>1,2</sup>,&nbsp;
+      Toan Manh Bui<sup>1,2</sup>,&nbsp;
+      Inyoung Oh<sup>1</sup>,&nbsp;
+      Junghyun Cho<sup>1,2,3,*</sup>
+    </p>
+    <p class="affil">
+      <sup>1</sup>Korea Institute of Science and Technology (KIST) &nbsp;·&nbsp;
+      <sup>2</sup>University of Science and Technology (UST) &nbsp;·&nbsp;
+      <sup>3</sup>Yonsei-KIST Convergence Research Institute<br>
+      <sup>*</sup>Corresponding author
+    </p>
+
+    <div class="links" aria-label="Links">
+      <a class="btn" href="#bibtex" aria-disabled="true" title="Camera-ready in preparation"><svg viewBox="0 0 24 24"><path d="M6 2h9l5 5v15H6zM14 3.5V8h4.5z"/></svg>Paper <span class="soon">coming soon</span></a>
+      <a class="btn" href="#bibtex" aria-disabled="true" title="Camera-ready in preparation"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4zm3 4v8h2V8zm4 0v8h2V8zm4 0v8h2V8z"/></svg>arXiv <span class="soon">coming soon</span></a>
+      <a class="btn" href="#bibtex" aria-disabled="true" title="Code release in preparation"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 0 0-3.2 19.5c.5.1.7-.2.7-.5v-1.8c-2.8.6-3.4-1.2-3.4-1.2-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.6 2.4 1.1 3 .9.1-.7.4-1.1.6-1.4-2.2-.3-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.8 1a9.5 9.5 0 0 1 5 0c1.9-1.3 2.8-1 2.8-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.4 4.7-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5A10 10 0 0 0 12 2z"/></svg>Code <span class="soon">coming soon</span></a>
+      <a class="btn ghost" href="#dataset" aria-disabled="true">Dataset <span class="soon">coming soon</span></a>
+      <a class="btn ghost" href="#bibtex" aria-disabled="true">Supplementary <span class="soon">coming soon</span></a>
+    </div>
+  </div>
+
+  <div class="wide teaser">
+    <div class="frame"><img src="static/images/teaser.jpg" alt="PanOpolis teaser: ten cities and five query domains on a world map; Building-Graph Verification matching buildings between a reference and a query panorama; a box plot showing R@1 lifted for six retrieval models." loading="eager"></div>
+    <p class="caption"><b>One verification, two answers.</b> Panoramic queries from five domains (road-view, pedestrian, bike, night, and a multi-year gap) are retrieved against the road-view archives of 10 cities. Instead of comparing appearance, PanOpolis re-ranks candidates by matching the buildings seen in the query and in each candidate and letting their relative directions vote for the rotation that aligns the two. The same vote returns the place and the absolute camera heading, with no learned weights. Across six pretrained retrieval models the verification lifts the whole distribution of R@1, raising the worst case by 9.9 points.</p>
+  </div>
+</header>
+
+<main>
+<section id="abstract" class="wrap">
+  <p class="kicker">Abstract</p>
+  <p class="lead">Visual place recognition (VPR) retrieves the location of a query image from a geotagged database. A 360° panorama is a particularly suitable query for this task, as it captures the entire surrounding scene at once, including the spatial arrangement of nearby buildings that is stable over time and reveals the camera heading; however, exploiting this structure within standard retrieval pipelines is not straightforward. In this paper, we propose a simple yet effective pipeline that retrieves full panoramic queries from existing road-view archives without retraining any retrieval network. We represent each panorama as a graph of buildings and their relative directions and verify retrieved candidates through rotation-aware matching, which simultaneously estimates the camera heading at no additional cost. Extensive experiments across 10 cities and 5 query domains demonstrate that our method consistently improves recall for six pretrained retrieval models, with the largest gains under a 16-year temporal gap and a viewpoint change between pedestrian queries and vehicle-mounted road views. Moreover, the recovered heading attains a median error of 2–3°.</p>
+
+  <div class="cards">
+    <div class="card"><p class="tag">Training-free</p><h4>No weights learned, nothing retrained</h4><p>The detector, the node encoder and the retrieval model all run with their public pretrained weights. One scalar, the fusion weight α, is fixed at 0.6 for every city, set and model.</p></div>
+    <div class="card"><p class="tag">Retrieval-agnostic</p><h4>Improves 17 of 18 model–set pairs</h4><p>Six retrieval models spanning a decade of VPR design, from NetVLAD to SALAD. The gains are largest where appearance matching is weakest: +9.9 to +15.1 R@1 for NetVLAD, +17.3 on the pooled multi-year set.</p></div>
+    <div class="card"><p class="tag">Orientation for free</p><h4>Median heading error of 2–3°</h4><p>The quantity being voted on is a rotation, so the absolute camera heading falls out of re-ranking itself. A built-in inlier gate keeps 91–99.5% of accepted headings within 20°.</p></div>
+    <div class="card"><p class="tag">Lightweight</p><h4>2.3 ms per query, 25.6 KB per image</h4><p>Hundreds of local features become a handful of building nodes. BGV is second only to DISK+LightGlue in recall, at 1/871 of its matching time and 1/10 of its cache, and is the only method that also returns the heading.</p></div>
+  </div>
+</section>
+
+<section id="method" class="wide">
+  <div class="wrap" style="padding:0">
+    <p class="kicker">Method</p>
+    <h2 style="margin-top:0">Building-Graph Verification</h2>
+    <p>Given a single query panorama, the goal is to output both the place and the absolute camera heading, using an existing road-view archive and no additional training. Retrieval and graph extraction run in parallel; verification joins them.</p>
+  </div>
+  <div class="figure"><div class="frame"><img src="static/images/pipeline.jpg" alt="Pipeline: sliding-window panoramic feature extraction and top-K retrieval; open-vocabulary detection builds a building graph; BGV voting over rotation offsets; score fusion; place and heading estimation." loading="lazy"></div></div>
+  <p class="caption"><b>Pipeline.</b> A frozen retrieval model encodes the query from eight 90° vertical windows and returns the top-100 candidates. Grounded-SAM 2 detects buildings; each becomes a node with a bearing θ and a DINOv2 feature. Matched building pairs vote for the rotation offset Δ between the two panoramas: for a correct candidate the votes agree, for a wrong one they scatter. The vote mass re-ranks the candidates, and the winning offset plus the database heading gives the absolute heading.</p>
+
+  <div class="wrap" style="padding:0">
+    <ol class="pipeline">
+      <li><b>Panoramic feature extraction</b><p>The equirectangular image is sliced into eight overlapping vertical windows (90° wide, 45° stride, full height), each encoded by the frozen retrieval model. The descriptors are averaged and L2-normalised into one vector per panorama. Any pretrained model drops in without architectural change.</p></li>
+      <li><b>Building-graph extraction</b><p>An open-vocabulary detector and segmenter find the buildings. Each building <i>i</i> is a node with a bearing θ<sub>i</sub>, read directly from the horizontal centre of its mask, and a 768-d DINOv2 feature. Edges are the relative directions between nodes, which do not change when the panorama is rotated. Database graphs are cached once, offline, and the cache does not depend on the retrieval model.</p></li>
+      <li><b>Two-stage retrieval with BGV</b><p>Stage 1 retrieves the top-100 candidates by nearest-neighbour search. Stage 2 matches query and candidate buildings by mutual nearest neighbours in feature space; each matched pair votes <span class="eq">Δ<sub>ij</sub> = (θ<sub>j</sub><sup>db</sup> − θ<sub>i</sub><sup>q</sup>) mod 360°</span>. The rotation that the most pairs agree on, within ±20° and weighted by match similarity, gives the geometric score. The final score fuses it with the retrieval score, <span class="eq">s = α ŝ<sub>ret</sub> + (1 − α) ŝ<sub>geo</sub></span>, with α = 0.6 everywhere.</p></li>
+      <li><b>Heading estimation</b><p>The selected rotation is refined by a similarity-weighted circular mean of the inlier votes, then added to the stored heading of the matched road view: <span class="eq">az = (Δ* + h<sub>db</sub>) mod 360°</span>. The inlier count doubles as a confidence gate: a heading supported by at least three agreeing buildings is reported, one from a single accidental match is not.</p></li>
+    </ol>
+  </div>
+</section>
+
+<section id="dataset" class="wrap">
+    <p class="kicker">Dataset</p>
+    <h2>10 cities, 5 query domains, a 16-year gap</h2>
+  <p>Every set is retrieved against the same road-view archive; the sets differ in how the query was captured. Three vary the platform (road-view, pedestrian, bike), two vary the condition (night queries against a daytime database, and queries captured 6 to 16 years before the database). Pedestrian captures use the platform's own on-foot label, rider captures are verified from the nadir band of each sequence, and night captures by image luminance rather than timestamp. A retrieved image counts as correct within 25 m; a query is included only if a database image lies within 12 m.</p>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Query set</th><th>#Query</th><th>#DB</th><th>Cities</th></tr></thead>
+      <tbody>
+        <tr><td>Road-view</td><td>5,481</td><td>78,222</td><td>8</td></tr>
+        <tr><td>Pedestrian</td><td>4,817</td><td>78,371</td><td>7</td></tr>
+        <tr><td>Bike (bicycle + motorcycle)</td><td>4,891</td><td>23,066</td><td>5</td></tr>
+        <tr><td>Night</td><td>1,233</td><td>14,091</td><td>2</td></tr>
+        <tr><td>Multi-year (6–16 yr)</td><td>364</td><td>11,976</td><td>2</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="tnote">Amsterdam, Auckland, Bangkok, Boston, Denver, London, Milan, Santiago, Seoul, Tokyo. #DB is the sum of per-city databases; retrieval runs within the database of the query's own city. All Mapillary imagery is CC BY-SA. For Seoul, whose road-view archive is commercially licensed, the building-graph caches and the evaluation protocol are released in place of the source images.</p>
+</section>
+
+<section id="results" class="wide">
+  <div class="wrap" style="padding:0">
+    <p class="kicker">Quantitative results</p>
+    <h2 style="margin-top:0">Same-domain and cross-viewpoint retrieval</h2>
+    <p>Base is each pretrained model with the eight-window encoding; +BGV adds verification with the single global α = 0.6. BGV improves recall in 17 of the 18 model–set pairs. The size of the gain follows the strength of the retrieval model rather than the set: NetVLAD gains 9.9 to 15.1 R@1, the ResNet-50 models 2.1 to 6.9, the two DINOv2-based models −0.2 to 3.2. Pedestrian queries, the setting a deployed system would actually face, are the hardest set and the one where the gains are largest for every model but NetVLAD.</p>
+  </div>
+  <div class="tablewrap">
+    <table>
+      <thead>
+        <tr class="group"><th></th><th colspan="6">Road-view queries</th><th class="gap"></th><th colspan="6">Pedestrian queries</th><th class="gap"></th><th colspan="6">Bike queries</th></tr>
+        <tr class="group"><th></th><th colspan="3">Base</th><th colspan="3">+BGV</th><th class="gap"></th><th colspan="3">Base</th><th colspan="3">+BGV</th><th class="gap"></th><th colspan="3">Base</th><th colspan="3">+BGV</th></tr>
+        <tr><th>Model</th><th>R@1</th><th>R@5</th><th>R@10</th><th>R@1</th><th>R@5</th><th>R@10</th><th class="gap"></th><th>R@1</th><th>R@5</th><th>R@10</th><th>R@1</th><th>R@5</th><th>R@10</th><th class="gap"></th><th>R@1</th><th>R@5</th><th>R@10</th><th>R@1</th><th>R@5</th><th>R@10</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>NetVLAD</td><td>34.3</td><td>49.3</td><td>55.7</td><td class="b">49.4</td><td class="b">63.5</td><td class="b">67.7</td><td class="gap"></td><td>8.2</td><td>16.8</td><td>21.1</td><td class="b">18.1</td><td class="b">28.6</td><td class="b">35.2</td><td class="gap"></td><td>21.1</td><td>34.9</td><td>41.6</td><td class="b">35.2</td><td class="b">47.9</td><td class="b">53.9</td></tr>
+        <tr><td>CosPlace</td><td>76.7</td><td>84.2</td><td>86.0</td><td class="b">80.0</td><td class="b">86.6</td><td class="b">88.1</td><td class="gap"></td><td>41.2</td><td>48.7</td><td>52.8</td><td class="b">48.1</td><td class="b">56.4</td><td class="b">60.0</td><td class="gap"></td><td>50.2</td><td>56.5</td><td>59.8</td><td class="b">56.5</td><td class="b">62.8</td><td class="b">66.0</td></tr>
+        <tr><td>EigenPlaces</td><td>78.2</td><td>84.9</td><td>87.0</td><td class="b">80.6</td><td class="b">87.5</td><td class="b">89.2</td><td class="gap"></td><td>42.9</td><td>49.6</td><td>53.1</td><td class="b">48.9</td><td class="b">55.7</td><td class="b">59.8</td><td class="gap"></td><td>53.9</td><td>60.7</td><td>63.9</td><td class="b">59.5</td><td class="b">65.8</td><td class="b">68.2</td></tr>
+        <tr><td>BoQ (R50)</td><td>80.6</td><td>86.4</td><td>88.5</td><td class="b">82.7</td><td class="b">88.5</td><td class="b">90.1</td><td class="gap"></td><td>49.2</td><td>57.2</td><td>61.1</td><td class="b">55.0</td><td class="b">63.4</td><td class="b">66.5</td><td class="gap"></td><td>68.6</td><td>74.4</td><td>77.3</td><td class="b">71.9</td><td class="b">77.7</td><td class="b">80.1</td></tr>
+        <tr><td>BoQ (DINOv2)</td><td>88.9</td><td>93.7</td><td>94.7</td><td class="b">89.7</td><td class="b">94.0</td><td class="b">95.4</td><td class="gap"></td><td>71.5</td><td>79.6</td><td>82.2</td><td class="b">74.1</td><td class="b">82.6</td><td class="b">85.4</td><td class="gap"></td><td class="b">82.3</td><td>87.2</td><td>88.9</td><td>82.1</td><td class="b">87.7</td><td class="b">89.3</td></tr>
+        <tr><td>SALAD</td><td>86.5</td><td>92.2</td><td>93.3</td><td class="b">87.4</td><td class="b">92.7</td><td class="b">93.9</td><td class="gap"></td><td>64.5</td><td>72.6</td><td>76.1</td><td class="b">67.7</td><td class="b">77.0</td><td class="b">79.9</td><td class="gap"></td><td>78.0</td><td>83.8</td><td>86.0</td><td class="b">78.8</td><td class="b">84.8</td><td class="b">87.2</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="tnote">Recall (%) pooled across cities, all three sets against the same road-view archive. Bold: the better of each pair.</p>
+
+  <div class="wrap" style="padding:0">
+    <h2 style="margin-top:48px">Night-to-day and multi-year</h2>
+    <p>Night is the hardest condition for appearance matching: the ResNet-50 family collapses from 77–81 R@1 to 26–33. Building layout is unaffected by lighting, and every model improves at R@1. The multi-year set, queries captured 6 to 16 years before the database, gives the largest gains in the evaluation: facades are repainted and shops change, but where the buildings stand is mostly preserved.</p>
+  </div>
+  <div class="tablewrap">
+    <table>
+      <thead>
+        <tr class="group"><th></th><th colspan="6">Night → day (n = 1,233)</th><th class="gap"></th><th colspan="6">Multi-year, pooled (n = 364)</th><th class="gap"></th><th colspan="6">Seoul, 16-year gap (n = 232)</th></tr>
+        <tr class="group"><th></th><th colspan="3">Base</th><th colspan="3">+BGV</th><th class="gap"></th><th colspan="3">Base</th><th colspan="3">+BGV</th><th class="gap"></th><th colspan="3">Base</th><th colspan="3">+BGV</th></tr>
+        <tr><th>Model</th><th>R@1</th><th>R@5</th><th>R@10</th><th>R@1</th><th>R@5</th><th>R@10</th><th class="gap"></th><th>R@1</th><th>R@5</th><th>R@10</th><th>R@1</th><th>R@5</th><th>R@10</th><th class="gap"></th><th>R@1</th><th>R@5</th><th>R@10</th><th>R@1</th><th>R@5</th><th>R@10</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>NetVLAD</td><td>11.4</td><td>20.2</td><td>24.0</td><td class="b">18.3</td><td class="b">27.4</td><td class="b">30.7</td><td class="gap"></td><td>13.7</td><td>28.9</td><td>36.6</td><td class="b">31.0</td><td class="b">54.1</td><td class="b">62.1</td><td class="gap"></td><td>17.7</td><td>35.8</td><td>45.3</td><td class="b">37.5</td><td class="b">60.3</td><td class="b">68.1</td></tr>
+        <tr><td>CosPlace</td><td>26.1</td><td>31.1</td><td>34.6</td><td class="b">28.9</td><td class="b">34.2</td><td class="b">36.6</td><td class="gap"></td><td>69.5</td><td>83.5</td><td>87.3</td><td class="b">75.6</td><td class="b">86.3</td><td class="b">88.2</td><td class="gap"></td><td>74.1</td><td>91.4</td><td>94.8</td><td class="b">80.6</td><td class="b">92.7</td><td class="b">95.3</td></tr>
+        <tr><td>EigenPlaces</td><td>27.5</td><td>31.6</td><td>33.9</td><td class="b">29.1</td><td class="b">33.7</td><td class="b">35.7</td><td class="gap"></td><td>72.5</td><td>81.6</td><td>85.2</td><td class="b">77.2</td><td class="b">84.1</td><td class="b">87.9</td><td class="gap"></td><td>76.7</td><td>88.4</td><td>93.1</td><td class="b">81.5</td><td class="b">90.1</td><td class="b">94.4</td></tr>
+        <tr><td>BoQ (R50)</td><td>33.4</td><td>40.3</td><td>42.1</td><td class="b">35.3</td><td class="b">41.4</td><td class="b">43.3</td><td class="gap"></td><td>74.7</td><td>83.5</td><td>86.8</td><td class="b">79.7</td><td class="b">86.0</td><td class="b">88.7</td><td class="gap"></td><td>78.0</td><td>89.2</td><td>92.7</td><td class="b">84.1</td><td class="b">91.8</td><td class="b">94.8</td></tr>
+        <tr><td>BoQ (DINOv2)</td><td>71.8</td><td>78.5</td><td>81.3</td><td class="b">72.1</td><td class="b">79.3</td><td class="b">82.4</td><td class="gap"></td><td class="b">89.0</td><td>93.2</td><td>94.8</td><td>86.3</td><td class="b">94.8</td><td class="b">96.4</td><td class="gap"></td><td class="b">90.9</td><td>96.6</td><td>98.3</td><td>87.5</td><td class="b">98.3</td><td class="b">99.6</td></tr>
+        <tr><td>SALAD</td><td>64.9</td><td>72.6</td><td>75.8</td><td class="b">66.7</td><td class="b">74.3</td><td class="b">77.5</td><td class="gap"></td><td>84.0</td><td>91.7</td><td>93.2</td><td class="b">85.7</td><td class="b">92.8</td><td class="b">94.2</td><td class="gap"></td><td>85.3</td><td>93.5</td><td>95.3</td><td class="b">86.6</td><td class="b">94.8</td><td class="b">96.1</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="tnote">Recall (%). Night pools Boston and Denver; multi-year pools six-year Boston pairs (n = 132) and 16-year Seoul pairs (n = 232). Even where BoQ (DINOv2) loses the top-1 slot, R@5 and R@10 improve in every column.</p>
+
+  <div class="wrap" style="padding:0">
+    <h2 style="margin-top:48px">Heading accuracy</h2>
+    <p>Ground truth is the compass value stored with the query, which the pipeline never reads. The median error is 1.8–4.1° over all queries and 1.7–3.1° under the confidence gate (n<sub>in</sub> ≥ 3). The gate responds to the domain gap the way it should: coverage stays at 76–79% on road-view and bike queries, drops to 68% for pedestrians and 54% at night, while the accuracy of the queries that pass changes far less. The system answers less often under difficult conditions, and keeps the answers it gives reliable.</p>
+  </div>
+  <div class="wrap" style="padding:0">
+  <div class="tablewrap">
+    <table>
+      <thead>
+        <tr class="group"><th></th><th></th><th>All</th><th colspan="3">Gated (n<sub>in</sub> ≥ 3)</th><th></th></tr>
+        <tr><th>Query set</th><th>n</th><th>Median</th><th>Median</th><th>≤ 5°</th><th>≤ 20°</th><th>Coverage</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Road-view</td><td>2,812</td><td>1.83°</td><td>1.71°</td><td>85.8</td><td>99.5</td><td>79</td></tr>
+        <tr><td>Pedestrian</td><td>2,932</td><td>4.11°</td><td>3.13°</td><td>64.6</td><td>91.0</td><td>68</td></tr>
+        <tr><td>Bike</td><td>3,800</td><td>2.97°</td><td>2.58°</td><td>75.9</td><td>97.7</td><td>76</td></tr>
+        <tr><td>Night</td><td>725</td><td>2.68°</td><td>2.78°</td><td>75.8</td><td>99.0</td><td>54</td></tr>
+        <tr><td>Multi-year</td><td>111</td><td>2.85°</td><td>2.24°</td><td>76.9</td><td>94.9</td><td>70</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="tnote">SALAD as the retrieval model; ≤ 5° and ≤ 20° are the fraction (%) of gated queries, Coverage the fraction (%) passing the gate. Seoul is excluded because its archive has no measured compass, so the multi-year row covers Boston only.</p>
+
+    <h2 style="margin-top:48px">Against other re-ranking methods</h2>
+    <p>Every method re-ranks the same top-100 candidates from frozen SALAD on 300 Milan pedestrian queries, each with its own best fusion weight; BGV keeps the fixed α = 0.6. Point-level matching does not transfer to this setting: handcrafted keypoints gain at most 0.3 R@1 at over a second per query, and k-reciprocal re-ranking degrades recall because consecutive road-view panoramas are mutual neighbours of one another. DISK+LightGlue surpasses BGV by 2.7 R@1, at 871× the matching time and 10× the cache.</p>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Method</th><th>R@1</th><th>R@5</th><th>R@10</th><th>Match (ms)</th><th>Cache (KB)</th><th>Extract (ms)</th><th>α*</th></tr></thead>
+      <tbody>
+        <tr><td>Stage-1 only (SALAD)</td><td>75.7</td><td>84.0</td><td>88.0</td><td>–</td><td>–</td><td>–</td><td>–</td></tr>
+        <tr><td>αQE</td><td>76.3</td><td>83.0</td><td>87.0</td><td>0.25</td><td>0</td><td>0</td><td>–</td></tr>
+        <tr><td>k-reciprocal</td><td>71.3</td><td>80.7</td><td>83.3</td><td>9.8</td><td>0</td><td>0</td><td>–</td></tr>
+        <tr><td>RootSIFT + MAGSAC++</td><td>76.0</td><td>84.3</td><td>88.7</td><td>1,154</td><td>897</td><td>100</td><td>0.8</td></tr>
+        <tr><td>ORB + MAGSAC++</td><td>75.3</td><td>85.3</td><td>88.7</td><td>945</td><td>78</td><td>26</td><td>0.8</td></tr>
+        <tr><td>DISK + LightGlue</td><td class="b">81.0</td><td class="b">89.3</td><td class="b">92.7</td><td>2,022</td><td>260</td><td>35</td><td>0.5</td></tr>
+        <tr><td>LoFTR</td><td>76.3</td><td>84.3</td><td>90.3</td><td>11,411</td><td>1,024</td><td>17</td><td>0.7</td></tr>
+        <tr class="ours"><td>BGV (ours)</td><td>78.3</td><td>88.3</td><td>90.7</td><td>2.32</td><td>25.6</td><td>441</td><td>0.6</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="tnote">Match is per query, cache per database image, extraction offline. BGV is the only entry that also returns the camera heading.</p>
+  </div>
+
+</section>
+
+<section id="qualitative" class="wide">
+  <div class="wrap" style="padding:0">
+    <p class="kicker">Qualitative results</p>
+    <h2 style="margin-top:0">Re-ranking comparison</h2>
+  </div>
+  <div class="figure"><div class="frame"><img src="static/images/qualitative.jpg" alt="Three Milan pedestrian queries with the top-5 candidates of Base, k-reciprocal, DISK+LightGlue and BGV; green frames are within 25 m, red outside." loading="lazy"></div></div>
+  <p class="caption"><b>Re-ranking on Milan pedestrian queries.</b> Green: within 25 m; red: outside. (a) Appearance ranks a street 728 m away first and k-reciprocal keeps it; DISK+LightGlue and BGV both recover the correct place at 11.3 m, BGV in 2.3 ms rather than 2.0 s, and with the heading. (b) The point matcher fails too, ranking a candidate 737 m away first, while the building layout still identifies the correct place at 9.5 m. (c) A failure of our method: the dark query yields a single building node, the vote collects one inlier, the confidence gate is not passed, and the top-1 stays 622 m away.</p>
+
+  <div class="wrap" style="padding:0">
+    <h2 style="margin-top:48px">Walking through Seoul with no compass and no GPS</h2>
+    <p>Each frame of a pedestrian 360° sequence is localised independently against the Seoul road-view archive: stage-1 SALAD, then BGV re-ranking, no temporal filtering. Both rows share one compass centred on the direction of travel, so the retrieved road view is rotated by the recovered Δ and turns together with the walker. Left: the ground-truth track with the estimated place and heading cone.</p>
+  </div>
+  <div class="demo-grid">
+    <figure><div class="frame"><video src="static/videos/walk_utI94qLU6C.mp4" autoplay loop muted playsinline preload="metadata" aria-label="Pedestrian 360 walking sequence in Seoul, 12 frames, localised frame by frame with place and heading"></video></div><figcaption>Sequence 1, 12 frames. Each frame is localised independently; the retrieved road view (bottom) is rotated by the recovered Δ so both rows share one compass.</figcaption></figure>
+    <figure><div class="frame"><video src="static/videos/walk_XowGURMFKP.mp4" autoplay loop muted playsinline preload="metadata" aria-label="Pedestrian 360 walking sequence in a residential Seoul street, 12 frames, localised frame by frame with place and heading"></video></div><figcaption>Sequence 2, 12 frames. Left: ground-truth track with the estimated place and heading cone; inlier count and place error are shown per frame.</figcaption></figure>
+  </div>
+  <p class="tnote">Stage-1 SALAD, eight windows; BGV re-ranking with α = 0.6; no temporal filtering. Videos play silently and loop.</p>
+</section>
+
+<section id="bibtex" class="wrap">
+  <p class="kicker">BibTeX</p>
+  <p class="tnote" style="margin:0 0 12px">Placeholder until the official WACV 2027 entry is released.</p>
+  <div class="bibwrap">
+    <button class="copy" type="button" id="copyBib">Copy</button>
+<pre id="bib">@inproceedings{min2027panopolis,
+  title     = {PanOpolis: City-Scale Panorama-to-Panorama Place Recognition with Orientation for Free},
+  author    = {Min, Donghyeok and Bui, Toan Manh and Oh, Inyoung and Cho, Junghyun},
+  booktitle = {Proceedings of the IEEE/CVF Winter Conference on Applications of Computer Vision (WACV)},
+  year      = {2027}
+}</pre>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    PanOpolis · WACV 2027 · Korea Institute of Science and Technology.<br>
+    Template inspired by <a href="https://nerfies.github.io">Nerfies</a> and the <a href="https://github.com/eliahuhorwitz/Academic-project-page-template">Academic Project Page Template</a>. Mapillary imagery is used under CC BY-SA 4.0.
+  </div>
+</footer>
+
+<script>
+(function(){
+  var btn=document.getElementById('copyBib'), pre=document.getElementById('bib');
+  if(!btn||!pre||!navigator.clipboard) return;
+  btn.addEventListener('click',function(){
+    navigator.clipboard.writeText(pre.textContent).then(function(){
+      btn.textContent='Copied'; setTimeout(function(){btn.textContent='Copy';},1600);
+    });
+  });
+})();
+</script>
+</body>
+</html>
